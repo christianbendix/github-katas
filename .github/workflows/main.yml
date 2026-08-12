@@ -8,6 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     container: gradle:6-jdk11
     steps:
+      - name: debug
+        run: |
+          echo "user=[$github_username]"
+          echo "token length=${#github_password}"
+          ls -la
+          ls -la build/libs || echo "no build/libs"
       - name: Clone down repository
         uses: actions/checkout@v4       
       - name: Build application
