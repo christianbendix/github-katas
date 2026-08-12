@@ -1,18 +1,42 @@
-name: Use reusable summary
+name: Reusable summary workflow
 
-on: [workflow_dispatch]
+on:
+  workflow_call:
+    inputs:
+      numbers:
+        description: 'JSON array of numbers as a string'
+        type: string
+        required: true
+        default: '[1,2,3]'
+    outputs:
+      summary:
+        description: 'Summary produced by the composite action (JSON)'
+        value: ${{ jobs.summarize.outputs.summary }}
+      summary_text:
+        description: 'Human-readable summary text'
+        value: ${{ jobs.summarize.outputs.summary_text }}
 
 jobs:
-  call-reusable:
-    uses: ./.github/workflows/reusable.yml
-    with:
-      numbers: '[5, 15, 25, 35, 45]'
-
-  show-summary:
+  summarize:
     runs-on: ubuntu-latest
-    needs: [call-reusable]
+    outputs:
+      summary: ${{ steps.call-summary.outputs.summary }}
+      summary_text: ${{ steps.format.outputs.summary_text }}
     steps:
-      - name: Print reusable workflow outputs
+      - uses: actions/checkout@v4
+
+      - name: Call summary composite action
+        id: call-summary
+        uses: ./.github/actions/summary-action
+        with:
+          numbers: ${{ inputs.numbers }}
+
+      - name: Format summary (create human-readable text)
+        id: format
+        shell: bash
         run: |
-          echo "Reusable summary (JSON): ${{ needs.call-reusable.outputs.summary }}"
-          echo "Reusable summary (text): ${{ needs.call-reusable.outputs.summary_text }}"
+          printf '%s' '${{ steps.call-summary.outputs.summary }}' > summary.json || true
+          echo "summary_text=$(cat summary.json)" >> $GITHUB_OUTPUT
+          
+          python3 ./ci/format_summary.py summary.json > summary_text.txt
+          echo "summary_text=$(cat summary_text.txt)" >> $GITHUB_OUTPUT
